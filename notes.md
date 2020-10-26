@@ -41,7 +41,7 @@ Hello, #(name)!
 
 **********************************************
 
-/// 'base.leaf
+/// 'base.zero
 
 ```html
 <title>#import("title")</title>
@@ -56,7 +56,7 @@ Hello, #(name)!
 <t>#import("header")</t>
 ```
 
-/// `home.leaf`
+/// `home.zero`
 
 ```html
 #extend("header"):

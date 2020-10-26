@@ -2,22 +2,22 @@
 import PackageDescription
 
 let package = Package(
-    name: "leaf-kit",
+    name: "zero-kit",
     platforms: [
        .macOS(.v10_15)
     ],
     products: [
-        .library(name: "LeafKit", targets: ["LeafKit"]),
+        .library(name: "ZeroKit", targets: ["ZeroKit"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.2.0"),
     ],
     targets: [
-        .target(name: "LeafKit", dependencies: [
+        .target(name: "ZeroKit", dependencies: [
             .product(name: "NIO", package: "swift-nio"),
         ]),
-        .testTarget(name: "LeafKitTests", dependencies: [
-            .target(name: "LeafKit"),
+        .testTarget(name: "ZeroKitTests", dependencies: [
+            .target(name: "ZeroKit"),
         ]),
     ]
 )
