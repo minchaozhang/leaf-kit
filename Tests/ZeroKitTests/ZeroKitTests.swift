@@ -1,5 +1,4 @@
 import XCTest
-import NIOConcurrencyHelpers
 @testable import ZeroKit
 
 final class ParserTests: XCTestCase {
@@ -584,21 +583,13 @@ final class ZeroKitTests: XCTestCase {
     }
 
     func _testRenderer() throws {
-        let threadPool = NIOThreadPool(numberOfThreads: 1)
-        threadPool.start()
-        let fileio = NonBlockingFileIO(threadPool: threadPool)
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let renderer = TestRenderer(
             configuration: .init(rootDirectory: templateFolder),
-            sources: .singleSource(ZeroFiles(fileio: fileio)),
-            eventLoop: group.next()
+            sources: .singleSource(ZeroFiles())
         )
 
-        let buffer = try! renderer.render(path: "test").wait()
+        let buffer = try! renderer.render(path: "test")
         print(buffer)
-
-        try threadPool.syncShutdownGracefully()
-        try group.syncShutdownGracefully()
     }
 
     func testRendererContext() throws {
@@ -620,7 +611,7 @@ final class ZeroKitTests: XCTestCase {
         )
         let view = try renderer.render(path: "foo", context: [
             "name": "vapor"
-        ]).wait()
+        ])
 
         XCTAssertEqual(view, "Hello barvapor")
     }
@@ -642,7 +633,7 @@ final class ZeroKitTests: XCTestCase {
         let renderer = TestRenderer(sources: .singleSource(test))
 
         do {
-            let output = try renderer.render(path: "a").wait()
+            let output = try renderer.render(path: "a")
             XCTAssertEqual(output, "Hello")
         } catch {
             let e = error as! ZeroError
@@ -652,27 +643,26 @@ final class ZeroKitTests: XCTestCase {
 
     func testCacheSpeedLinear() {
         self.measure {
-            self._testCacheSpeedLinear(templates: 10, iterations: 100)
+            try! self._testCacheSpeedLinear(templates: 10, iterations: 100)
         }
     }
 
-    func _testCacheSpeedLinear(templates: Int, iterations: Int) {
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+    func _testCacheSpeedLinear(templates: Int, iterations: Int) throws {
         var test = TestFiles()
 
         for name in 1...templates { test.files["/\(name).zero"] = "Template /\(name).zero" }
         let renderer = TestRenderer(
-            sources: .singleSource(test),
-            eventLoop: group.next()
+            sources: .singleSource(test)
         )
 
         for iteration in 1...iterations {
             let template = String((iteration % templates) + 1)
-            renderer.render(path: template).whenComplete { _ in renderer.finishTask() }
+            let _ = try renderer.render(path: template)
+            renderer.finishTask()
         }
 
         while !renderer.isDone { usleep(10) }
-        group.shutdownGracefully { _ in XCTAssertEqual(renderer.r.cache.count, templates) }
+        XCTAssertEqual(renderer.r.cache.count, templates)
     }
 
     func testCacheSpeedRandom() {
@@ -683,7 +673,6 @@ final class ZeroKitTests: XCTestCase {
     }
 
     func _testCacheSpeedRandom(layer1: Int, layer2: Int, layer3: Int, iterations: Int) {
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         var test = TestFiles()
 
         for name in 1...layer3 { test.files["/\(name)-3.zero"] = "Template \(name)"}
@@ -696,19 +685,19 @@ final class ZeroKitTests: XCTestCase {
         let ratio = iterations / allKeys.count
 
         let renderer = TestRenderer(
-            sources: .singleSource(test),
-            eventLoop: group.next()
+            sources: .singleSource(test)
         )
 
         for x in (0..<iterations).reversed() {
             let template: String
             if x / ratio < hitList.count { template = hitList.removeFirst() }
             else { template = allKeys[Int.random(in: 0 ..< totalTemplates)] }
-            renderer.render(path: template).whenComplete { _ in renderer.finishTask() }
+            let _ = try! renderer.render(path: template)
+            renderer.finishTask()
         }
 
         while !renderer.isDone { usleep(10) }
-        group.shutdownGracefully { _ in XCTAssertEqual(renderer.r.cache.count, layer1+layer2+layer3) }
+        XCTAssertEqual(renderer.r.cache.count, layer1+layer2+layer3)
     }
 
     func testImportParameter() throws {
@@ -735,9 +724,9 @@ final class ZeroKitTests: XCTestCase {
 
         let renderer = TestRenderer(sources: .singleSource(test))
         
-        let normalPage = try renderer.render(path: "base", context: ["admin": false]).wait()
-        let adminPage = try renderer.render(path: "base", context: ["admin": true]).wait()
-        let delegatePage = try renderer.render(path: "delegate", context: ["bypass": true]).wait()
+        let normalPage = try renderer.render(path: "base", context: ["admin": false])
+        let adminPage = try renderer.render(path: "base", context: ["admin": true])
+        let delegatePage = try renderer.render(path: "delegate", context: ["bypass": true])
         XCTAssertEqual(normalPage.trimmingCharacters(in: .whitespacesAndNewlines), "No Access")
         XCTAssertEqual(adminPage.trimmingCharacters(in: .whitespacesAndNewlines), "Hi Admin")
         XCTAssertEqual(delegatePage.trimmingCharacters(in: .whitespacesAndNewlines), "Also an admin")
@@ -762,43 +751,46 @@ final class ZeroKitTests: XCTestCase {
 
         let renderer = TestRenderer(sources: .singleSource(test))
 
-        let page = try! renderer.render(path: "a", context: ["b":["1","2","3"]]).wait()
+        let page = try! renderer.render(path: "a", context: ["b":["1","2","3"]])
             XCTAssertEqual(page, expected)
     }
     
     func testFileSandbox() throws {
-        let threadPool = NIOThreadPool(numberOfThreads: 1)
-        threadPool.start()
-        let fileio = NonBlockingFileIO(threadPool: threadPool)
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-    
         let renderer = TestRenderer(
             configuration: .init(rootDirectory: templateFolder),
-            sources: .singleSource(ZeroFiles(fileio: fileio,
-                                                limits: .default,
-                                                sandboxDirectory: templateFolder,
-                                                viewDirectory: templateFolder + "SubTemplates/")),
-            eventLoop: group.next()
+            sources: .singleSource(ZeroFiles(
+                                    limits: .default,
+                                    sandboxDirectory: templateFolder,
+                                    viewDirectory: templateFolder + "SubTemplates/"))
         )
-        
-        renderer.render(path: "test").whenComplete { _ in renderer.finishTask() }
-        renderer.render(path: "../test").whenComplete { _ in renderer.finishTask() }
-        renderer.render(path: "../../test").whenComplete { result in
+
+        do {
+            let _ = try renderer.render(path: "test")
             renderer.finishTask()
-            if case .failure(let e) = result, let err = e as? ZeroError {
+            let _ = try renderer.render(path: "../test")
+            renderer.finishTask()
+            let _ = try renderer.render(path: "../../test")
+            renderer.finishTask()
+        } catch {
+            if let err = error as? ZeroError {
                 XCTAssert(err.localizedDescription.contains("Attempted to escape sandbox"))
-            } else { XCTFail() }
+            } else {
+                XCTFail()
+            }
         }
-        renderer.render(path: ".test").whenComplete { result in
+
+        do {
+            let _ = try renderer.render(path: ".test")
             renderer.finishTask()
-            if case .failure(let e) = result, let err = e as? ZeroError {
+        } catch {
+            if let err = error as? ZeroError {
                 XCTAssert(err.localizedDescription.contains("Attempted to access .test"))
-            } else { XCTFail() }
+            } else {
+                XCTFail()
+            }
         }
         
         while !renderer.isDone { usleep(10) }
-        try group.syncShutdownGracefully()
-        try threadPool.syncShutdownGracefully()
     }
     
     func testMultipleSources() throws {
@@ -823,21 +815,21 @@ final class ZeroKitTests: XCTestCase {
         XCTAssert(goodRenderer.r.sources.all.contains("sourceTwo"))
         XCTAssert(emptyRenderer.r.sources.searchOrder.isEmpty)
 
-        let output1 = try goodRenderer.render(path: "a").wait()
+        let output1 = try goodRenderer.render(path: "a")
         XCTAssert(output1.contains("sourceOne"))
-        let output2 = try goodRenderer.render(path: "b").wait()
+        let output2 = try goodRenderer.render(path: "b")
         XCTAssert(output2.contains("sourceTwo"))
 
-        do { try XCTFail(goodRenderer.render(path: "c").wait()) }
+        do { try XCTFail(goodRenderer.render(path: "c")) }
         catch {
             let error = error as! ZeroError
             XCTAssert(error.localizedDescription.contains("No template found"))
         }
         
-        let output3 = try goodRenderer.render(source: "hiddenSource", path: "c").wait()
+        let output3 = try goodRenderer.render(source: "hiddenSource", path: "c")
         XCTAssert(output3.contains("hiddenSource"))
         
-        do { try XCTFail(emptyRenderer.render(path: "c").wait()) }
+        do { try XCTFail(emptyRenderer.render(path: "c")) }
         catch {
             let error = error as! ZeroError
             XCTAssert(error.localizedDescription.contains("No searchable sources exist"))

@@ -1,7 +1,6 @@
 /// Place all tests related to verifying that errors ARE thrown here
 
 import XCTest
-import NIOConcurrencyHelpers
 @testable import ZeroKit
 
 final class ZeroErrorTests: XCTestCase {
@@ -14,7 +13,7 @@ final class ZeroErrorTests: XCTestCase {
         test.files["/c.zero"] = "#extend(\"a\")"
 
         do {
-            _ = try TestRenderer(sources: .singleSource(test)).render(path: "a").wait()
+            _ = try TestRenderer(sources: .singleSource(test)).render(path: "a")
             XCTFail("Should have thrown ZeroError.cyclicalReference")
         } catch let error as ZeroError {
             switch error.reason {
@@ -34,7 +33,7 @@ final class ZeroErrorTests: XCTestCase {
         test.files["/b.zero"] = "#extend(\"c\")"
 
         do {
-            _ = try TestRenderer(sources: .singleSource(test)).render(path: "a").wait()
+            _ = try TestRenderer(sources: .singleSource(test)).render(path: "a")
             XCTFail("Should have thrown ZeroError.noTemplateExists")
         } catch let error as ZeroError {
             switch error.reason {

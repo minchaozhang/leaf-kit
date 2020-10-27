@@ -2,7 +2,7 @@
 // MARK: -
 
 
-import NIOConcurrencyHelpers
+import Foundation
 
 /// An opaque object holding named `ZeroSource` adherants specifying a default search order.
 ///
@@ -55,10 +55,10 @@ public final class ZeroSources {
     // MARK: - Internal Only
     internal private(set) var sources: [String: ZeroSource]
     private var order: [String]
-    private let lock: Lock = .init()
+    private let lock = NSLock()
     
     /// Locate a template from the sources; if a specific source is named, only try to read from it. Otherwise, use the specified search order
-    internal func find(template: String, in source: String? = nil, on eventLoop: EventLoop) throws -> EventLoopFuture<(String, String)> {
+    internal func find(template: String, in source: String? = nil) throws -> (String, String) {
         var keys: [String]
         
         switch source {
@@ -69,11 +69,11 @@ public final class ZeroSources {
         }
         guard !keys.isEmpty else { throw ZeroError(.illegalAccess("No searchable sources exist")) }
         
-        return searchSources(t: template, on: eventLoop, s: keys)
+        return try searchSources(t: template, s: keys)
     }
     
-    private func searchSources(t: String, on eL: EventLoop, s: [String]) -> EventLoopFuture<(String, String)> {
-        guard !s.isEmpty else { return eL.makeFailedFuture(ZeroError(.noTemplateExists(t))) }
+    private func searchSources(t: String, s: [String]) throws -> (String, String) {
+        guard !s.isEmpty else { throw ZeroError(.noTemplateExists(t)) }
         var more = s
         let key = more.removeFirst()
         lock.lock()
@@ -81,20 +81,15 @@ public final class ZeroSources {
         lock.unlock()
         
         do {
-            let file = try source.file(template: t, escape: true, on: eL)
-            // Hit the file - return the combined tuple
-            return eL.makeSucceededFuture(key).and(file).flatMapError { _ in
-                // Or move onto the next one if this source can't get the file
-                return self.searchSources(t: t, on: eL, s: more)
-            }
-        }
-        catch {
+            let file = try source.file(template: t, escape: true)
+            return (key, file)
+        } catch {
             // If the throwing error is illegal access, fail immediately
-            if let e = error as? ZeroError,
-               case .illegalAccess(_) = e.reason { return eL.makeFailedFuture(e) }
-            else {
+            if let e = error as? ZeroError, case .illegalAccess(_) = e.reason {
+                throw e
+            } else {
                 // Or move onto the next one
-                return searchSources(t: t, on: eL, s: more)
+                return try searchSources(t: t, s: more)
             }
         }
     }

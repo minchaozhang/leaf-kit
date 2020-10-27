@@ -2,7 +2,6 @@
 /// Suffix test name with issue # (eg, `testGH33()`)
 
 import XCTest
-import NIOConcurrencyHelpers
 @testable import ZeroKit
 
 final class GHZeroKitIssuesTest: XCTestCase {
@@ -40,7 +39,7 @@ final class GHZeroKitIssuesTest: XCTestCase {
         </body>
         """
 
-        let page = try! TestRenderer(sources: .singleSource(test)).render(path: "page").wait()
+        let page = try! TestRenderer(sources: .singleSource(test)).render(path: "page")
         XCTAssertEqual(page, expected)
     }
     
@@ -70,7 +69,7 @@ final class GHZeroKitIssuesTest: XCTestCase {
 
         """
 
-        let page = try! TestRenderer(sources: .singleSource(test)).render(path: "a", context: ["challenges":["","",""]]).wait()
+        let page = try! TestRenderer(sources: .singleSource(test)).render(path: "a", context: ["challenges":["","",""]])
             XCTAssertEqual(page, expected)
     }
 }

@@ -23,8 +23,6 @@ public final class ZeroRenderer {
     public let cache: ZeroCache
     /// A thread-safe implementation of `ZeroSource` protocol
     public let sources: ZeroSources
-    /// The NIO `EventLoop` on which this instance of `ZeroRenderer` will operate
-    public let eventLoop: EventLoop
     /// Any custom instance data to use (eg, in Vapor, the `Application` and/or `Request` data)
     public let userInfo: [AnyHashable: Any]
     
@@ -34,14 +32,12 @@ public final class ZeroRenderer {
         tags: [String: ZeroTag] = defaultTags,
         cache: ZeroCache = DefaultZeroCache(),
         sources: ZeroSources,
-        eventLoop: EventLoop,
         userInfo: [AnyHashable: Any] = [:]
     ) {
         self.configuration = configuration
         self.tags = tags
         self.cache = cache
         self.sources = sources
-        self.eventLoop = eventLoop
         self.userInfo = userInfo
     }
 
@@ -74,52 +70,47 @@ public final class ZeroRenderer {
     /// extension should be inferred if none is provided- `"path/to/template"` corresponds to
     /// `"/.../ViewDirectory/path/to/template.zero"`, while an explicit extension -
     /// `"file.svg"` would correspond to `"/.../ViewDirectory/file.svg"`
-    public func render(path: String, context: [String: ZeroData]) -> EventLoopFuture<String> {
-        guard path.count > 0 else { return self.eventLoop.makeFailedFuture(ZeroError(.noTemplateExists("(no key provided)"))) }
+    public func render(path: String, context: [String: ZeroData]) throws -> String {
+        guard path.count > 0 else { throw ZeroError(.noTemplateExists("(no key provided)")) }
 
         // If a flat AST is cached and available, serialize and return
         if let flatAST = getFlatCachedHit(path),
-           let buffer = try? serialize(flatAST, context: context) {
-            return eventLoop.makeSucceededFuture(buffer)
+            let buffer = try? serialize(flatAST, context: context) {
+            return buffer
         }
         
         // Otherwise operate using normal future-based full resolving behavior
-        return self.cache.retrieve(documentName: path, on: self.eventLoop).flatMapThrowing { cached in
-            guard let cached = cached else { throw ZeroError(.noValueForKey(path)) }
-            guard cached.flat else { throw ZeroError(.unresolvedAST(path, Array(cached.unresolvedRefs))) }
-            return try self.serialize(cached, context: context)
-        }.flatMapError { e in
-            return self.fetch(template: path).flatMapThrowing { ast in
-                guard let ast = ast else { throw ZeroError(.noTemplateExists(path)) }
-                guard ast.flat else { throw ZeroError(.unresolvedAST(path, Array(ast.unresolvedRefs))) }
-                return try self.serialize(ast, context: context)
-            }
+        if let cached = try cache.retrieve(documentName: path), cached.flat {
+            return try serialize(cached, context: context)
         }
+
+        let cached = try fetch(template: path)
+        guard let ast = cached else { throw ZeroError(.noTemplateExists(path)) }
+        guard ast.flat else { throw ZeroError(.unresolvedAST(path, Array(ast.unresolvedRefs))) }
+        return try serialize(ast, context: context)
     }
     
     
     // MARK: - Internal Only
     /// Temporary testing interface
-    internal func render(source: String, path: String, context: [String: ZeroData]) -> EventLoopFuture<String> {
-        guard path.count > 0 else { return self.eventLoop.makeFailedFuture(ZeroError(.noTemplateExists("(no key provided)"))) }
-        let sourcePath = source + ":" + path
+    internal func render(source: String, path: String, context: [String: ZeroData]) throws -> String {
+        guard path.count > 0 else { throw ZeroError(.noTemplateExists("(no key provided)")) }
+
         // If a flat AST is cached and available, serialize and return
-        if let flatAST = getFlatCachedHit(sourcePath),
-           let buffer = try? serialize(flatAST, context: context) {
-            return eventLoop.makeSucceededFuture(buffer)
+        if let flatAST = getFlatCachedHit(path),
+            let buffer = try? serialize(flatAST, context: context) {
+            return buffer
         }
-        
-        return self.cache.retrieve(documentName: sourcePath, on: self.eventLoop).flatMapThrowing { cached in
-            guard let cached = cached else { throw ZeroError(.noValueForKey(path)) }
-            guard cached.flat else { throw ZeroError(.unresolvedAST(path, Array(cached.unresolvedRefs))) }
-            return try self.serialize(cached, context: context)
-        }.flatMapError { e in
-            return self.fetch(source: source, template: path).flatMapThrowing { ast in
-                guard let ast = ast else { throw ZeroError(.noTemplateExists(path)) }
-                guard ast.flat else { throw ZeroError(.unresolvedAST(path, Array(ast.unresolvedRefs))) }
-                return try self.serialize(ast, context: context)
-            }
+
+        // Otherwise operate using normal future-based full resolving behavior
+        if let cached = try cache.retrieve(documentName: path), cached.flat {
+            return try serialize(cached, context: context)
         }
+
+        let cached = try fetch(template: path)
+        guard let ast = cached else { throw ZeroError(.noTemplateExists(path)) }
+        guard ast.flat else { throw ZeroError(.unresolvedAST(path, Array(ast.unresolvedRefs))) }
+        return try serialize(ast, context: context)
     }
 
     // MARK: - Private Only
@@ -147,17 +138,9 @@ public final class ZeroRenderer {
     ///
     /// Recursive calls to `fetch()` from `resolve()` must provide the chain of extended
     /// templates to prevent cyclical errors
-    private func fetch(source: String? = nil, template: String, chain: [String] = []) -> EventLoopFuture<ZeroAST?> {
-        return cache.retrieve(documentName: template, on: eventLoop).flatMap { cached in
-            guard let cached = cached else {
-                return self.read(source: source, name: template, escape: true).flatMap { ast in
-                    guard let ast = ast else { return self.eventLoop.makeSucceededFuture(nil) }
-                    return self.resolve(ast: ast, chain: chain).map {$0}
-                }
-            }
-            guard cached.flat == false else { return self.eventLoop.makeSucceededFuture(cached) }
-            return self.resolve(ast: cached, chain: chain).map {$0}
-        }
+    private func fetch(source: String? = nil, template: String, chain: [String] = []) throws -> ZeroAST? {
+        let ast = try read(source: source, name: template, escape: true)
+        return ast.flat ? try resolve(ast: ast, chain: chain) : ast
     }
 
     /// Attempt to resolve a `ZeroAST`
@@ -166,9 +149,9 @@ public final class ZeroRenderer {
     /// - If there are extensions, ensure that (if we've been called from a chain of extensions) no cyclical
     ///   references to a previously extended template would occur as a result
     /// - Recursively `fetch()` any extended template references and build a new `ZeroAST`
-    private func resolve(ast: ZeroAST, chain: [String]) -> EventLoopFuture<ZeroAST> {
+    private func resolve(ast: ZeroAST, chain: [String]) throws -> ZeroAST {
         // if the ast is already flat, cache it immediately and return
-        if ast.flat == true { return self.cache.insert(ast, on: self.eventLoop, replace: true) }
+        if ast.flat == true { return try cache.insert(ast, replace: true) }
 
         var chain = chain
         chain.append(ast.name)
@@ -176,34 +159,25 @@ public final class ZeroRenderer {
         guard intersect.count == 0 else {
             let badRef = intersect.first ?? ""
             chain.append(badRef)
-            return self.eventLoop.makeFailedFuture(ZeroError(.cyclicalReference(badRef, chain)))
+            throw ZeroError(.cyclicalReference(badRef, chain))
         }
 
-        let fetchRequests = ast.unresolvedRefs.map { self.fetch(template: $0, chain: chain) }
-
-        let results = EventLoopFuture.whenAllComplete(fetchRequests, on: self.eventLoop)
-        return results.flatMap { results in
-            let results = results
-            var externals: [String: ZeroAST] = [:]
-            for result in results {
-                // skip any unresolvable references
-                switch result {
-                    case .success(let external):
-                        guard let external = external else { continue }
-                        externals[external.name] = external
-                    case .failure(let e): return self.eventLoop.makeFailedFuture(e)
-                }
-            }
-            // create new AST with loaded references
-            let new = ZeroAST(from: ast, referencing: externals)
-            // Check new AST's unresolved refs to see if extension introduced new refs
-            if !new.unresolvedRefs.subtracting(ast.unresolvedRefs).isEmpty {
-                // AST has new references - try to resolve again recursively
-                return self.resolve(ast: new, chain: chain)
-            } else {
-                // Cache extended AST & return - AST is either flat or unresolvable
-                return self.cache.insert(new, on: self.eventLoop, replace: true)
-            }
+        let results = try ast.unresolvedRefs
+            .map { try self.fetch(template: $0, chain: chain) }
+            .compactMap { $0 }
+        var externals: [String: ZeroAST] = [:]
+        for result in results {
+            externals[result.name] = result
+        }
+        // create new AST with loaded references
+        let new = ZeroAST(from: ast, referencing: externals)
+        // Check new AST's unresolved refs to see if extension introduced new refs
+        if !new.unresolvedRefs.subtracting(ast.unresolvedRefs).isEmpty {
+            // AST has new references - try to resolve again recursively
+            return try resolve(ast: new, chain: chain)
+        } else {
+            // Cache extended AST & return - AST is either flat or unresolvable
+            return try cache.insert(new, replace: true)
         }
     }
     
@@ -211,22 +185,16 @@ public final class ZeroRenderer {
     ///
     /// If the configured `ZeroSource` can't read a file, future will fail - otherwise, a complete (but not
     /// necessarily flat) `ZeroAST` will be returned.
-    private func read(source: String? = nil, name: String, escape: Bool = false) -> EventLoopFuture<ZeroAST?> {
-        let raw: EventLoopFuture<(String, String)>
-        do {
-            raw = try self.sources.find(template: name, in: source , on: self.eventLoop)
-        } catch { return eventLoop.makeFailedFuture(error) }
+    private func read(source: String? = nil, name: String, escape: Bool = false) throws -> ZeroAST {
+        let raw = try sources.find(template: name, in: source)
+        let name = source == nil ? name : raw.0 + name
+        let template = raw.1
 
-        return raw.flatMapThrowing { raw -> ZeroAST? in
-            let name = source == nil ? name : raw.0 + name
-            let template = raw.1
-            
-            var lexer = ZeroLexer(name: name, template: ZeroRawTemplate(name: name, src: template))
-            let tokens = try lexer.lex()
-            var parser = ZeroParser(name: name, tokens: tokens)
-            let ast = try parser.parse()
-            return ZeroAST(name: name, ast: ast)
-        }
+        var lexer = ZeroLexer(name: name, template: ZeroRawTemplate(name: name, src: template))
+        let tokens = try lexer.lex()
+        var parser = ZeroParser(name: name, tokens: tokens)
+        let ast = try parser.parse()
+        return ZeroAST(name: name, ast: ast)
     }
     
     private func getFlatCachedHit(_ path: String) -> ZeroAST? {

@@ -1,5 +1,5 @@
 import XCTest
-import NIOConcurrencyHelpers
+import Foundation
 @testable import ZeroKit
 
 /// Assorted multi-purpose helper pieces for ZeroKit tests
@@ -47,30 +47,28 @@ internal func render(name: String = "test-render", _ template: String, _ context
 /// Helper wrapping` ZeroRenderer` to preconfigure for simplicity & allow eliding context
 internal class TestRenderer {
     var r: ZeroRenderer
-    private let lock: Lock
+    private let lock: NSLock
     private var counter: Int = 0
     
     init(configuration: ZeroConfiguration = .init(rootDirectory: "/"),
             tags: [String : ZeroTag] = defaultTags,
             cache: ZeroCache = DefaultZeroCache(),
             sources: ZeroSources = .singleSource(TestFiles()),
-            eventLoop: EventLoop = EmbeddedEventLoop(),
             userInfo: [AnyHashable : Any] = [:]) {
         self.r = .init(configuration: configuration,
                               tags: tags,
                               cache: cache,
                               sources: sources,
-                              eventLoop: eventLoop,
                               userInfo: userInfo)
         lock = .init()
     }
     
-    func render(source: String? = nil, path: String, context: [String: ZeroData] = [:]) -> EventLoopFuture<String> {
+    func render(source: String? = nil, path: String, context: [String: ZeroData] = [:]) throws -> String {
         lock.withLock { counter += 1 }
         if let source = source {
-            return self.r.render(source: source, path: path, context: context)
+            return try self.r.render(source: source, path: path, context: context)
         } else {
-            return self.r.render(path: path, context: context)
+            return try self.r.render(path: path, context: context)
         }
     }
     
@@ -86,14 +84,14 @@ internal class TestRenderer {
 /// Helper `ZeroFiles` struct providing an in-memory thread-safe map of "file names" to "file data"
 internal struct TestFiles: ZeroSource {
     var files: [String: String]
-    var lock: Lock
+    var lock: NSLock
     
     init() {
         files = [:]
         lock = .init()
     }
     
-    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) -> EventLoopFuture<String> {
+    public func file(template: String, escape: Bool = false) throws -> String {
         var path = template
         if path.split(separator: "/").last?.split(separator: ".").count ?? 1 < 2,
            !path.hasSuffix(".zero") { path += ".zero" }
@@ -102,20 +100,14 @@ internal struct TestFiles: ZeroSource {
         self.lock.lock()
         defer { self.lock.unlock() }
         if let file = self.files[path] {
-            return eventLoop.makeSucceededFuture(file)
+            return file
         } else {
-            return eventLoop.makeFailedFuture(ZeroError(.noTemplateExists(template)))
+            throw ZeroError(.noTemplateExists(template))
         }
     }
 }
 
 // MARK: - Helper Extensions
-
-internal extension ByteBuffer {
-    var string: String {
-        String(decoding: self.readableBytesView, as: UTF8.self)
-    }
-}
 
 internal extension Array where Element == ZeroToken {
     func dropWhitespace() -> Array<ZeroToken> {

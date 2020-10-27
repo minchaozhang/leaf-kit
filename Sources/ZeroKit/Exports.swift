@@ -1,7 +1,7 @@
 // MARK: Subject to change prior to 1.0.0 release
 // MARK: -
 
-@_exported import NIO
+import Foundation
 
 /// Various helper identities for convenience
 extension Character {
@@ -116,4 +116,29 @@ extension Character {
     static let ampersand = "&".first!
     static let vertical = "|".first!
     static let underscore = "_".first!
+}
+
+extension NSLock {
+    /// Acquire the lock for the duration of the given block.
+    ///
+    /// This convenience method should be preferred to `lock` and `unlock` in
+    /// most situations, as it ensures that the lock will be released regardless
+    /// of how `body` exits.
+    ///
+    /// - Parameter body: The block to execute while holding the lock.
+    /// - Returns: The value returned by the block.
+    @inlinable
+    public func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        self.lock()
+        defer {
+            self.unlock()
+        }
+        return try body()
+    }
+
+    // specialise Void return (for performance)
+    @inlinable
+    public func withLockVoid(_ body: () throws -> Void) rethrows -> Void {
+        try self.withLock(body)
+    }
 }
