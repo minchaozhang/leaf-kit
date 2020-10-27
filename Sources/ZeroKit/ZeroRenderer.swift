@@ -53,10 +53,10 @@ public final class ZeroRenderer {
     /// extension should be inferred if none is provided- `"path/to/template"` corresponds to
     /// `"/.../ViewDirectory/path/to/template.zero"`, while an explicit extension -
     /// `"file.svg"` would correspond to `"/.../ViewDirectory/file.svg"`
-//    public func render<E>(path: String, context: E) throws -> String
-//        where E: Encodable {
-//        return try render(path: path, context: try ZeroEncoder().encode(context))
-//    }
+    public func render<E>(path: String, context: E) throws -> String
+        where E: Encodable {
+        return try render(path: path, context: try ZeroEncoder().encode(context))
+    }
 
     /// The public interface to `ZeroRenderer`
     /// - Parameter path: Name of the template to be used
