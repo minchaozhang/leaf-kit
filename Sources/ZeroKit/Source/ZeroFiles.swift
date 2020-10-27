@@ -37,19 +37,18 @@ public struct ZeroFiles: ZeroSource {
     
     /// Initialize `ZeroFiles` with a NIO file IO object, limit options, and sandbox/view dirs
     /// - Parameters:
-    ///   - fileio: `NonBlockingFileIO` file object
     ///   - limits: Options for constraining which files may be read - see `ZeroFiles.Limit`
     ///   - sandboxDirectory: Full path of the lowest directory which may be escaped to
     ///   - viewDirectory: Full path of the default directory templates are relative to
     ///   - defaultExtension: The default extension inferred files will have (defaults to `zero`)
     ///
     /// `viewDirectory` must be contained within (or overlap) `sandboxDirectory`
-    public init(fileio: NonBlockingFileIO,
-                limits: Limit = .default,
-                sandboxDirectory: String = "/",
-                viewDirectory: String = "/",
-                defaultExtension: String = "zero") {
-        self.fileio = fileio
+    public init(
+        limits: Limit = .default,
+        sandboxDirectory: String = "/",
+        viewDirectory: String = "/",
+        defaultExtension: String = "zero"
+    ) {
         self.limits = limits
         self.extension = defaultExtension
         let sD = URL(fileURLWithPath: sandboxDirectory, isDirectory: true).standardized.path.appending("/")
@@ -65,10 +64,9 @@ public struct ZeroFiles: ZeroSource {
     ///   - template: Relative template name (eg: `"path/to/template"`)
     ///   - escape: If the adherent represents a filesystem or something scoped that enforces
     ///             a concept of directories and sandboxing, whether to allow escaping the view directory
-    ///   - eventLoop: `EventLoop` on which to perform file access
-    /// - Returns: A succeeded `EventLoopFuture` holding a `String` with the raw
+    /// - Returns: A succeeded `String` with the raw
     ///            template, or an appropriate failed state ELFuture (not found, illegal access, etc)
-    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) throws -> EventLoopFuture<String> {
+    public func file(template: String, escape: Bool = false) throws -> String {
         var template = URL(fileURLWithPath: sandbox + viewRelative + template, isDirectory: false).standardized.path
         /// If default extension is enforced for template files, add it if it's not on the file, or if no extension present
         if limits.contains(.onlyZeroExtensions), !template.hasSuffix(".\(self.extension)")
@@ -95,29 +93,19 @@ public struct ZeroFiles: ZeroSource {
             }
         }
 
-        return self.read(path: template, on: eventLoop)
+        return try read(path: template)
     }
     
     // MARK: - Internal/Private Only
 
-    internal let fileio: NonBlockingFileIO
     internal let limits: Limit
     internal let sandbox: String
     internal let viewRelative: String
     internal let `extension`: String
     
     /// Attempt to read a fully pathed template and return a String or fail
-    private func read(path: String, on eventLoop: EventLoop) -> EventLoopFuture<String> {
-        let openFile = self.fileio.openFile(path: path, eventLoop: eventLoop)
-        return openFile.flatMapErrorThrowing { error in
-            throw ZeroError(.noTemplateExists(path))
-        }.flatMap { (handle, region) -> EventLoopFuture<String> in
-            let allocator = ByteBufferAllocator()
-            let read = self.fileio.read(fileRegion: region, allocator: allocator, eventLoop: eventLoop)
-            return read.flatMapThrowing { (buffer)  in
-                try handle.close()
-                return buffer.getString(at: 0, length: 0) ?? ""
-            }
-        }
+    private func read(path: String) throws -> String {
+        let encoding = ZeroConfiguration.encoding
+        return try String(contentsOfFile: path, encoding: encoding)
     }
 }

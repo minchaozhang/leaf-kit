@@ -2,7 +2,6 @@
 /// Suffix test name with issue # (eg, `testGH33()`)
 
 import XCTest
-import NIOConcurrencyHelpers
 @testable import ZeroKit
 
 final class GHZeroIssuesTest: XCTestCase {

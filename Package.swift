@@ -9,13 +9,8 @@ let package = Package(
     products: [
         .library(name: "ZeroKit", targets: ["ZeroKit"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.2.0"),
-    ],
     targets: [
-        .target(name: "ZeroKit", dependencies: [
-            .product(name: "NIO", package: "swift-nio"),
-        ]),
+        .target(name: "ZeroKit"),
         .testTarget(name: "ZeroKitTests", dependencies: [
             .target(name: "ZeroKit"),
         ]),

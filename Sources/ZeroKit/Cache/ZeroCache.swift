@@ -21,33 +21,27 @@ public protocol ZeroCache {
     
     /// - Parameters:
     ///   - document: The `ZeroAST` to store
-    ///   - loop: `EventLoop` to return futures on
     ///   - replace: If a document with the same name is already cached, whether to replace or not.
     /// - Returns: The document provided as an identity return (or a failed future if it can't be inserted)
     func insert(
         _ document: ZeroAST,
-        on loop: EventLoop,
         replace: Bool
-    ) -> EventLoopFuture<ZeroAST>
+    ) throws -> ZeroAST
     
     /// - Parameters:
     ///   - documentName: Name of the `ZeroAST`  to try to return
-    ///   - loop: `EventLoop` to return futures on
-    /// - Returns: `EventLoopFuture<ZeroAST?>` holding the `ZeroAST` or nil if no matching result
+    /// - Returns: `ZeroAST` or nil if no matching result
     func retrieve(
-        documentName: String,
-        on loop: EventLoop
-    ) -> EventLoopFuture<ZeroAST?>
+        documentName: String
+    ) throws -> ZeroAST?
 
     /// - Parameters:
     ///   - documentName: Name of the `ZeroAST`  to try to purge from the cache
-    ///   - loop: `EventLoop` to return futures on
-    /// - Returns: `EventLoopFuture<Bool?>` - If no document exists, returns nil. If removed,
+    /// - Returns: `Bool?` - If no document exists, returns nil. If removed,
     ///     returns true. If cache can't remove because of dependencies (not yet possible), returns false.
     func remove(
-        _ documentName: String,
-        on loop: EventLoop
-    ) -> EventLoopFuture<Bool?>
+        _ documentName: String
+    ) throws -> Bool?
 }
 
 /// A `ZeroCache` that provides certain blocking methods for non-future access to the cache
