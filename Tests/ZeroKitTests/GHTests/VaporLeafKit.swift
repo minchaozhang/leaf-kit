@@ -41,7 +41,7 @@ final class GHZeroKitIssuesTest: XCTestCase {
         """
 
         let page = try! TestRenderer(sources: .singleSource(test)).render(path: "page").wait()
-        XCTAssertEqual(page.string, expected)
+        XCTAssertEqual(page, expected)
     }
     
     
@@ -71,6 +71,6 @@ final class GHZeroKitIssuesTest: XCTestCase {
         """
 
         let page = try! TestRenderer(sources: .singleSource(test)).render(path: "a", context: ["challenges":["","",""]]).wait()
-            XCTAssertEqual(page.string, expected)
+            XCTAssertEqual(page, expected)
     }
 }

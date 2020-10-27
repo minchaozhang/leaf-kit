@@ -44,7 +44,7 @@ public final class ZeroRenderer {
         self.eventLoop = eventLoop
         self.userInfo = userInfo
     }
-    
+
     /// The public interface to `ZeroRenderer`
     /// - Parameter path: Name of the template to be used
     /// - Parameter context: Any unique context data for the template to use
@@ -57,7 +57,24 @@ public final class ZeroRenderer {
     /// extension should be inferred if none is provided- `"path/to/template"` corresponds to
     /// `"/.../ViewDirectory/path/to/template.zero"`, while an explicit extension -
     /// `"file.svg"` would correspond to `"/.../ViewDirectory/file.svg"`
-    public func render(path: String, context: [String: ZeroData]) -> EventLoopFuture<ByteBuffer> {
+//    public func render<E>(path: String, context: E) throws -> String
+//        where E: Encodable {
+//        return try render(path: path, context: try ZeroEncoder().encode(context))
+//    }
+
+    /// The public interface to `ZeroRenderer`
+    /// - Parameter path: Name of the template to be used
+    /// - Parameter context: Any unique context data for the template to use
+    /// - Returns: Serialized result of using the template, or a failed future
+    ///
+    /// Interpretation of `path` is dependent on the implementation of `ZeroSource` but is assumed to
+    /// be relative to `ZeroConfiguration.rootDirectory`.
+    ///
+    /// Where `ZeroSource` is a file sytem based source, some assumptions should be made; `.zero`
+    /// extension should be inferred if none is provided- `"path/to/template"` corresponds to
+    /// `"/.../ViewDirectory/path/to/template.zero"`, while an explicit extension -
+    /// `"file.svg"` would correspond to `"/.../ViewDirectory/file.svg"`
+    public func render(path: String, context: [String: ZeroData]) -> EventLoopFuture<String> {
         guard path.count > 0 else { return self.eventLoop.makeFailedFuture(ZeroError(.noTemplateExists("(no key provided)"))) }
 
         // If a flat AST is cached and available, serialize and return
@@ -83,7 +100,7 @@ public final class ZeroRenderer {
     
     // MARK: - Internal Only
     /// Temporary testing interface
-    internal func render(source: String, path: String, context: [String: ZeroData]) -> EventLoopFuture<ByteBuffer> {
+    internal func render(source: String, path: String, context: [String: ZeroData]) -> EventLoopFuture<String> {
         guard path.count > 0 else { return self.eventLoop.makeFailedFuture(ZeroError(.noTemplateExists("(no key provided)"))) }
         let sourcePath = source + ":" + path
         // If a flat AST is cached and available, serialize and return
@@ -108,7 +125,7 @@ public final class ZeroRenderer {
     // MARK: - Private Only
     
     /// Given a `ZeroAST` and context data, serialize the AST with provided data into a final render
-    private func serialize(_ doc: ZeroAST, context: [String: ZeroData]) throws -> ByteBuffer {
+    private func serialize(_ doc: ZeroAST, context: [String: ZeroData]) throws -> String {
         guard doc.flat == true else { throw ZeroError(.unresolvedAST(doc.name, Array(doc.unresolvedRefs))) }
 
         var serializer = ZeroSerializer(
@@ -195,17 +212,14 @@ public final class ZeroRenderer {
     /// If the configured `ZeroSource` can't read a file, future will fail - otherwise, a complete (but not
     /// necessarily flat) `ZeroAST` will be returned.
     private func read(source: String? = nil, name: String, escape: Bool = false) -> EventLoopFuture<ZeroAST?> {
-        let raw: EventLoopFuture<(String, ByteBuffer)>
+        let raw: EventLoopFuture<(String, String)>
         do {
             raw = try self.sources.find(template: name, in: source , on: self.eventLoop)
         } catch { return eventLoop.makeFailedFuture(error) }
 
         return raw.flatMapThrowing { raw -> ZeroAST? in
-            var raw = raw
-            guard let template = raw.1.readString(length: raw.1.readableBytes) else {
-                throw ZeroError.init(.unknownError("File read failed"))
-            }
             let name = source == nil ? name : raw.0 + name
+            let template = raw.1
             
             var lexer = ZeroLexer(name: name, template: ZeroRawTemplate(name: name, src: template))
             let tokens = try lexer.lex()

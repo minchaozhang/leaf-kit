@@ -168,16 +168,16 @@ internal extension Array where Element == ParameterDeclaration {
     func atomicRaw() -> Syntax? {
         // only atomic expressions can be converted
         guard self.count < 2 else { return nil }
-        var buffer = ByteBufferAllocator().buffer(capacity: 0)
+        var buffer = ""
         // empty expressions = empty raw
         guard self.count == 1 else { return .raw(buffer) }
         // only single value parameters can be converted
         guard case .parameter(let p) = self[0] else { return nil }
         switch p {
-            case .constant(let c): buffer.writeString(c.description)
-            case .keyword(let k): buffer.writeString(k.rawValue)
-            case .operator(let o): buffer.writeString(o.rawValue)
-            case .stringLiteral(let s): buffer.writeString(s)
+            case .constant(let c): buffer.append(c.description)
+            case .keyword(let k): buffer.append(k.rawValue)
+            case .operator(let o): buffer.append(o.rawValue)
+            case .stringLiteral(let s): buffer.append(s)
             // .tag, .variable not atomic
             default: return nil
         }

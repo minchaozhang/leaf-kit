@@ -39,8 +39,7 @@ internal func render(name: String = "test-render", _ template: String, _ context
         ast: ast,
         context: context
     )
-    let view = try serializer.serialize()
-    return view.getString(at: view.readerIndex, length: view.readableBytes) ?? ""
+    return try serializer.serialize()
 }
 
 // MARK: - Helper Structs and Classes
@@ -66,7 +65,7 @@ internal class TestRenderer {
         lock = .init()
     }
     
-    func render(source: String? = nil, path: String, context: [String: ZeroData] = [:]) -> EventLoopFuture<ByteBuffer> {
+    func render(source: String? = nil, path: String, context: [String: ZeroData] = [:]) -> EventLoopFuture<String> {
         lock.withLock { counter += 1 }
         if let source = source {
             return self.r.render(source: source, path: path, context: context)
@@ -94,7 +93,7 @@ internal struct TestFiles: ZeroSource {
         lock = .init()
     }
     
-    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) -> EventLoopFuture<ByteBuffer> {
+    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) -> EventLoopFuture<String> {
         var path = template
         if path.split(separator: "/").last?.split(separator: ".").count ?? 1 < 2,
            !path.hasSuffix(".zero") { path += ".zero" }
@@ -103,9 +102,7 @@ internal struct TestFiles: ZeroSource {
         self.lock.lock()
         defer { self.lock.unlock() }
         if let file = self.files[path] {
-            var buffer = ByteBufferAllocator().buffer(capacity: file.count)
-            buffer.writeString(file)
-            return eventLoop.makeSucceededFuture(buffer)
+            return eventLoop.makeSucceededFuture(file)
         } else {
             return eventLoop.makeFailedFuture(ZeroError(.noTemplateExists(template)))
         }

@@ -12,13 +12,13 @@ internal struct ZeroSerializer {
     ) {
         self.ast = ast
         self.offset = 0
-        self.buffer = ByteBufferAllocator().buffer(capacity: 0)
+        self.buffer = String()
         self.data = data
         self.tags = tags
         self.userInfo = userInfo
     }
     
-    mutating func serialize() throws -> ByteBuffer {
+    mutating func serialize() throws -> String {
         self.offset = 0
         while let next = self.peek() {
             self.pop()
@@ -31,14 +31,14 @@ internal struct ZeroSerializer {
     
     private let ast: [Syntax]
     private var offset: Int
-    private var buffer: ByteBuffer
+    private var buffer: String
     private var data: [String: ZeroData]
     private let tags: [String: ZeroTag]
     private let userInfo: [AnyHashable: Any]
 
     private mutating func serialize(_ syntax: Syntax) throws {
         switch syntax {
-            case .raw(var byteBuffer): buffer.writeBuffer(&byteBuffer)
+            case .raw(let byteBuffer): buffer.append(byteBuffer)
             case .custom(let custom):  try serialize(custom)
             case .conditional(let c):  try serialize(c)
             case .loop(let loop):      try serialize(loop)
@@ -121,8 +121,8 @@ internal struct ZeroSerializer {
                 tags: self.tags,
                 userInfo: self.userInfo
             )
-            var loopBody = try serializer.serialize()
-            self.buffer.writeBuffer(&loopBody)
+            let loopBody = try serializer.serialize()
+            buffer.append(loopBody)
         }
     }
 

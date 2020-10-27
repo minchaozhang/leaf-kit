@@ -134,9 +134,9 @@ internal indirect enum ZeroDataStorage: Equatable, CustomStringConvertible {
     }
     
     /// Final serialization to a shared buffer
-    internal func serialize(buffer: inout ByteBuffer) throws {
+    internal func serialize(buffer: inout String) throws {
         let encoding = ZeroConfiguration.encoding
-        var data: Data? = nil
+        var data: String? = nil
         switch self {
             case .bool(_),
                  .int(_),
@@ -145,11 +145,11 @@ internal indirect enum ZeroDataStorage: Equatable, CustomStringConvertible {
                  .lazy(_,_,_),
                  .optional(_,_),
                  .array(_),
-                 .dictionary(_) : data = try serialize()!.data(using: encoding)
-            case .data(let d)   : data = d
+                 .dictionary(_) : data = try serialize()
+            case .data(let d)   : data = String(data: d, encoding: encoding)
         }
         guard let validData = data else { throw "Serialization Error" }
-        buffer.writeBytes(validData)
+        buffer.append(validData)
     }
     
     // MARK: - Equatable Conformance

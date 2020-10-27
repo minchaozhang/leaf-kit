@@ -580,7 +580,7 @@ final class ZeroKitTests: XCTestCase {
         let ast = try parser.parse()
         var serializer = ZeroSerializer(ast: ast, context: ["todo": ["title": "Zero!"]])
         let view = try serializer.serialize()
-        XCTAssertEqual(view.string, "Todo: Zero!")
+        XCTAssertEqual(view, "Todo: Zero!")
     }
 
     func _testRenderer() throws {
@@ -594,9 +594,8 @@ final class ZeroKitTests: XCTestCase {
             eventLoop: group.next()
         )
 
-        var buffer = try! renderer.render(path: "test").wait()
-        let string = buffer.readString(length: buffer.readableBytes)!
-        print(string)
+        let buffer = try! renderer.render(path: "test").wait()
+        print(buffer)
 
         try threadPool.syncShutdownGracefully()
         try group.syncShutdownGracefully()
@@ -623,7 +622,7 @@ final class ZeroKitTests: XCTestCase {
             "name": "vapor"
         ]).wait()
 
-        XCTAssertEqual(view.string, "Hello barvapor")
+        XCTAssertEqual(view, "Hello barvapor")
     }
 
 // MARK: testCyclicalError() - moved to ZeroErrorTests.swift
@@ -643,7 +642,7 @@ final class ZeroKitTests: XCTestCase {
         let renderer = TestRenderer(sources: .singleSource(test))
 
         do {
-            let output = try renderer.render(path: "a").wait().string
+            let output = try renderer.render(path: "a").wait()
             XCTAssertEqual(output, "Hello")
         } catch {
             let e = error as! ZeroError
@@ -739,9 +738,9 @@ final class ZeroKitTests: XCTestCase {
         let normalPage = try renderer.render(path: "base", context: ["admin": false]).wait()
         let adminPage = try renderer.render(path: "base", context: ["admin": true]).wait()
         let delegatePage = try renderer.render(path: "delegate", context: ["bypass": true]).wait()
-        XCTAssertEqual(normalPage.string.trimmingCharacters(in: .whitespacesAndNewlines), "No Access")
-        XCTAssertEqual(adminPage.string.trimmingCharacters(in: .whitespacesAndNewlines), "Hi Admin")
-        XCTAssertEqual(delegatePage.string.trimmingCharacters(in: .whitespacesAndNewlines), "Also an admin")
+        XCTAssertEqual(normalPage.trimmingCharacters(in: .whitespacesAndNewlines), "No Access")
+        XCTAssertEqual(adminPage.trimmingCharacters(in: .whitespacesAndNewlines), "Hi Admin")
+        XCTAssertEqual(delegatePage.trimmingCharacters(in: .whitespacesAndNewlines), "Also an admin")
     }
     
     func testDeepResolve() {
@@ -764,7 +763,7 @@ final class ZeroKitTests: XCTestCase {
         let renderer = TestRenderer(sources: .singleSource(test))
 
         let page = try! renderer.render(path: "a", context: ["b":["1","2","3"]]).wait()
-            XCTAssertEqual(page.string, expected)
+            XCTAssertEqual(page, expected)
     }
     
     func testFileSandbox() throws {
@@ -824,21 +823,21 @@ final class ZeroKitTests: XCTestCase {
         XCTAssert(goodRenderer.r.sources.all.contains("sourceTwo"))
         XCTAssert(emptyRenderer.r.sources.searchOrder.isEmpty)
 
-        let output1 = try goodRenderer.render(path: "a").wait().string
+        let output1 = try goodRenderer.render(path: "a").wait()
         XCTAssert(output1.contains("sourceOne"))
-        let output2 = try goodRenderer.render(path: "b").wait().string
+        let output2 = try goodRenderer.render(path: "b").wait()
         XCTAssert(output2.contains("sourceTwo"))
 
-        do { try XCTFail(goodRenderer.render(path: "c").wait().string) }
+        do { try XCTFail(goodRenderer.render(path: "c").wait()) }
         catch {
             let error = error as! ZeroError
             XCTAssert(error.localizedDescription.contains("No template found"))
         }
         
-        let output3 = try goodRenderer.render(source: "hiddenSource", path: "c").wait().string
+        let output3 = try goodRenderer.render(source: "hiddenSource", path: "c").wait()
         XCTAssert(output3.contains("hiddenSource"))
         
-        do { try XCTFail(emptyRenderer.render(path: "c").wait().string) }
+        do { try XCTFail(emptyRenderer.render(path: "c").wait()) }
         catch {
             let error = error as! ZeroError
             XCTAssert(error.localizedDescription.contains("No searchable sources exist"))

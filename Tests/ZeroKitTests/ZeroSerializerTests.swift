@@ -27,9 +27,8 @@ final class SerializerTests: XCTestCase {
         let walking = ZeroData(.string("walking"))
         let skills = ZeroData(.array([running, walking]))
         var serializer = ZeroSerializer(ast: syntax, context: ["name": name, "skills": skills, "me": me])
-        var serialized = try serializer.serialize()
-        let str = serialized.readString(length: serialized.readableBytes) ?? "<err>"
-        print(str)
+        let serialized = try serializer.serialize()
+        print(serialized)
         print()
 //        let syntax = try! altParse(input)
 //        let output = syntax.map { $0.description } .joined(separator: "\n")
@@ -58,9 +57,8 @@ final class SerializerTests: XCTestCase {
         ]))
 
         var serializer = ZeroSerializer(ast: syntax, context: ["people": people])
-        var serialized = try serializer.serialize()
-        let str = (serialized.readString(length: serialized.readableBytes) ?? "<err>")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let serialized = try serializer.serialize()
+        let str = serialized.trimmingCharacters(in: .whitespacesAndNewlines)
 
         XCTAssertEqual(str, """
         hello LOGAN

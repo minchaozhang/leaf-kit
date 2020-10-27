@@ -79,12 +79,9 @@ public struct ZeroAST: Hashable {
         // compress raws
         pos = ast.startIndex
         while pos < ast.index(before: ast.endIndex) {
-            if case .raw(var syntax) = ast[pos] {
-                if case .raw(var add) = ast[ast.index(after: pos)] {
-                    var buffer = ByteBufferAllocator().buffer(capacity: syntax.readableBytes + add.readableBytes)
-                    buffer.writeBuffer(&syntax)
-                    buffer.writeBuffer(&add)
-                    ast[pos] = .raw(buffer)
+            if case .raw(let syntax) = ast[pos] {
+                if case .raw(let add) = ast[ast.index(after: pos)] {
+                    ast[pos] = .raw(syntax + add)
                     ast.remove(at: ast.index(after: pos) )
                 } else { pos = ast.index(after: pos) }
             } else { pos = ast.index(after: pos) }

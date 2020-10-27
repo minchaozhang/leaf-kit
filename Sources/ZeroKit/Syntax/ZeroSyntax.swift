@@ -1,6 +1,6 @@
 public indirect enum Syntax {
     // MARK: .raw - Makeable, Entirely Readable
-    case raw(ByteBuffer)
+    case raw(String)
     // MARK: `case variable(Variable)` removed
     // MARK: .expression - Makeable, Entirely Readable
     case expression([ParameterDeclaration])
@@ -573,8 +573,7 @@ extension Syntax: CustomStringConvertible {
             case .import(let imp):     return imp.print(depth: depth)
             case .extend(let ext):     return ext.print(depth: depth)
             case .export(let export):  return export.print(depth: depth)
-            case .raw(var bB):
-                let string = bB.readString(length: bB.readableBytes) ?? ""
+            case .raw(let string):
                 return indent(depth) + "raw(\(string.debugDescription))"
         }
     }

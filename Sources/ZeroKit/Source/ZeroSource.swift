@@ -13,5 +13,5 @@ public protocol ZeroSource {
     ///            template, or an appropriate failed state ELFuture (not found, illegal access, etc)
     func file(template: String,
               escape: Bool,
-              on eventLoop: EventLoop) throws -> EventLoopFuture<ByteBuffer>
+              on eventLoop: EventLoop) throws -> EventLoopFuture<String>
 }

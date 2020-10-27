@@ -58,7 +58,7 @@ public final class ZeroSources {
     private let lock: Lock = .init()
     
     /// Locate a template from the sources; if a specific source is named, only try to read from it. Otherwise, use the specified search order
-    internal func find(template: String, in source: String? = nil, on eventLoop: EventLoop) throws -> EventLoopFuture<(String, ByteBuffer)> {
+    internal func find(template: String, in source: String? = nil, on eventLoop: EventLoop) throws -> EventLoopFuture<(String, String)> {
         var keys: [String]
         
         switch source {
@@ -72,7 +72,7 @@ public final class ZeroSources {
         return searchSources(t: template, on: eventLoop, s: keys)
     }
     
-    private func searchSources(t: String, on eL: EventLoop, s: [String]) -> EventLoopFuture<(String, ByteBuffer)> {
+    private func searchSources(t: String, on eL: EventLoop, s: [String]) -> EventLoopFuture<(String, String)> {
         guard !s.isEmpty else { return eL.makeFailedFuture(ZeroError(.noTemplateExists(t))) }
         var more = s
         let key = more.removeFirst()

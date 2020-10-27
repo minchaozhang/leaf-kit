@@ -231,7 +231,7 @@ public struct ZeroData: CustomStringConvertible,
     internal func serialize() throws -> String? {
         try storage.serialize()
     }
-    internal func serialize(buffer: inout ByteBuffer) throws {
+    internal func serialize(buffer: inout String) throws {
         try storage.serialize(buffer: &buffer)
     }
     

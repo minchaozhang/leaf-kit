@@ -234,11 +234,11 @@ internal struct ZeroParser {
         return paramsList
     }
 
-    private mutating func collectRaw() throws -> ByteBuffer {
-        var raw = ByteBufferAllocator().buffer(capacity: 0)
+    private mutating func collectRaw() throws -> String {
+        var raw = String()
         while let peek = peek(), case .raw(let val) = peek {
             pop()
-            raw.writeString(val)
+            raw.append(val)
         }
         return raw
     }
@@ -303,18 +303,12 @@ internal struct ZeroParser {
                                 case .variable(_):
                                     return .expression([params[0]])
                                 case .constant(let c):
-                                    var buffer = ByteBufferAllocator().buffer(capacity: 0)
-                                    buffer.writeString(c.description)
-                                    return .raw(buffer)
+                                    return .raw(c.description)
                                 case .stringLiteral(let st):
-                                    var buffer = ByteBufferAllocator().buffer(capacity: 0)
-                                    buffer.writeString(st)
-                                    return .raw(buffer)
+                                    return .raw(st)
                                 case .keyword(let kw) :
                                     guard kw.isBooleanValued else { fallthrough }
-                                    var buffer = ByteBufferAllocator().buffer(capacity: 0)
-                                    buffer.writeString(kw.rawValue)
-                                    return .raw(buffer)
+                                    return .raw(kw.rawValue)
                                 default:
                                     throw "unsupported parameter \(p)"
                             }

@@ -66,9 +66,9 @@ public struct ZeroFiles: ZeroSource {
     ///   - escape: If the adherent represents a filesystem or something scoped that enforces
     ///             a concept of directories and sandboxing, whether to allow escaping the view directory
     ///   - eventLoop: `EventLoop` on which to perform file access
-    /// - Returns: A succeeded `EventLoopFuture` holding a `ByteBuffer` with the raw
+    /// - Returns: A succeeded `EventLoopFuture` holding a `String` with the raw
     ///            template, or an appropriate failed state ELFuture (not found, illegal access, etc)
-    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) throws -> EventLoopFuture<ByteBuffer> {
+    public func file(template: String, escape: Bool = false, on eventLoop: EventLoop) throws -> EventLoopFuture<String> {
         var template = URL(fileURLWithPath: sandbox + viewRelative + template, isDirectory: false).standardized.path
         /// If default extension is enforced for template files, add it if it's not on the file, or if no extension present
         if limits.contains(.onlyZeroExtensions), !template.hasSuffix(".\(self.extension)")
@@ -106,17 +106,17 @@ public struct ZeroFiles: ZeroSource {
     internal let viewRelative: String
     internal let `extension`: String
     
-    /// Attempt to read a fully pathed template and return a ByteBuffer or fail
-    private func read(path: String, on eventLoop: EventLoop) -> EventLoopFuture<ByteBuffer> {
+    /// Attempt to read a fully pathed template and return a String or fail
+    private func read(path: String, on eventLoop: EventLoop) -> EventLoopFuture<String> {
         let openFile = self.fileio.openFile(path: path, eventLoop: eventLoop)
         return openFile.flatMapErrorThrowing { error in
             throw ZeroError(.noTemplateExists(path))
-        }.flatMap { (handle, region) -> EventLoopFuture<ByteBuffer> in
+        }.flatMap { (handle, region) -> EventLoopFuture<String> in
             let allocator = ByteBufferAllocator()
             let read = self.fileio.read(fileRegion: region, allocator: allocator, eventLoop: eventLoop)
             return read.flatMapThrowing { (buffer)  in
                 try handle.close()
-                return buffer
+                return buffer.getString(at: 0, length: 0) ?? ""
             }
         }
     }
