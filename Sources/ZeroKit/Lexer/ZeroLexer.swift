@@ -103,6 +103,8 @@ internal struct ZeroLexer {
         let name = src.readWhile { $0.isValidInTagName }
         let trailing = src.peek()
         state = .raw
+        // remove extra newline
+        if trailing == .newLine { src.pop() }
         if trailing == .colon { state = .body }
         if trailing == .leftParenthesis { state = .parameters; depth = 0 }
         return .tag(name: name)
@@ -140,6 +142,10 @@ internal struct ZeroLexer {
     /// Consume `:`, change state to `.raw`, return `.tagBodyIndicator`
     private mutating func lexBodyIndicator() -> ZeroToken {
         src.pop()
+        // remove extra newline
+        if let current = src.peek(), current == .newLine {
+            src.pop()
+        }
         state = .raw
         return .tagBodyIndicator
     }

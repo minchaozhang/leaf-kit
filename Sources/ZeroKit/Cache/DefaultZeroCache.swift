@@ -42,12 +42,10 @@ public final class DefaultZeroCache: SynchronousZeroCache {
     public func retrieve(
         documentName: String
     ) throws -> ZeroAST? {
-        guard isEnabled == true else { throw ZeroError(.cachingDisabled) }
+        guard isEnabled == true else { return nil }
         self.lock.lock()
         defer { self.lock.unlock() }
-        let result = self.cache[documentName]
-        guard result != nil else { throw ZeroError(.noValueForKey(documentName)) }
-        return result
+        return cache[documentName]
     }
 
     /// - Parameters:

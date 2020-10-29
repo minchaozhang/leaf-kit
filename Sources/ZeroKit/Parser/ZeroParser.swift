@@ -1,7 +1,7 @@
 // MARK: Subject to change prior to 1.0.0 release
 // MARK: -
 
-extension String: Error {}
+//extension String: Error {}
 
 internal struct ZeroParser {
     // MARK: - Internal Only
