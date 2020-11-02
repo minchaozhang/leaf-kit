@@ -2,7 +2,7 @@
     <img 
         src="https://user-images.githubusercontent.com/1342803/75629786-f9b64600-5bb2-11ea-856b-9ded8ea07450.png" 
         height="64" 
-        alt="ZeroKit"
+        alt="LeafX"
     >
     <br>
     <br>
@@ -15,8 +15,8 @@
     <a href="LICENSE">
         <img src="http://img.shields.io/badge/license-MIT-brightgreen.svg" alt="MIT License">
     </a>
-    <a href="https://github.com/vapor/zero-kit/actions">
-        <img src="https://github.com/vapor/zero-kit/workflows/test/badge.svg" alt="Continuous Integration">
+    <a href="https://github.com/vapor/leaf-kit/actions">
+        <img src="https://github.com/vapor/leaf-kit/workflows/test/badge.svg" alt="Continuous Integration">
     </a>
     <a href="https://swift.org">
         <img src="http://img.shields.io/badge/swift-5.2-brightgreen.svg" alt="Swift 5.2">

@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "zero-kit",
+    name: "leaf-x",
     platforms: [
        .macOS(.v10_15)
     ],
     products: [
-        .library(name: "ZeroKit", targets: ["ZeroKit"]),
+        .library(name: "LeafX", targets: ["LeafX"]),
     ],
     targets: [
-        .target(name: "ZeroKit"),
-        .testTarget(name: "ZeroKitTests", dependencies: [
-            .target(name: "ZeroKit"),
+        .target(name: "LeafX"),
+        .testTarget(name: "LeafXTests", dependencies: [
+            .target(name: "LeafX"),
         ]),
     ]
 )
