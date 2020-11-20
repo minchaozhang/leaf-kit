@@ -116,7 +116,8 @@ internal struct LeafLexer {
         while let current = src.peek(), current != .tagIndicator {
             slice += src.readWhile { $0 != .tagIndicator && $0 != .backSlash }
             guard let newCurrent = src.peek(), newCurrent == .backSlash else { break }
-            if let next = src.peek(aheadBy: 1), next == .tagIndicator {
+            let next = src.peek(aheadBy: 1)
+            if next == .tagIndicator || next == .colon {
                 src.pop()
             }
             slice += src.pop()!.description
